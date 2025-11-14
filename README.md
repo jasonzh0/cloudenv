@@ -1,22 +1,30 @@
 # Cloudsec CLI
 
-A command-line tool for managing Google Cloud Platform (GCP) secrets across multiple environments. Cloudsec simplifies secret management by providing a unified interface to create, read, update, and delete secrets stored in GCP Secret Manager.
+[![npm version](https://img.shields.io/npm/v/cloudsec)](https://www.npmjs.com/package/cloudsec)
+
+A command-line tool for managing secrets across multiple cloud providers and environments. Cloudsec simplifies secret management by providing a unified interface to create, read, update, and delete secrets stored in cloud secret management services.
 
 ## Features
 
+- ☁️ **Multi-cloud support** - Works with GCP Secret Manager and AWS Secrets Manager (AWS coming soon)
 - 🔐 **Multi-environment support** - Manage secrets across dev, staging, and production environments
 - 📦 **Bulk operations** - Import and export secrets from JSON files
 - 🔄 **Environment variable sync** - Easily sync secrets to local environment variables
 - 🏷️ **Automatic labeling** - Secrets are automatically tagged with environment metadata
-- ⚡ **Fast and efficient** - Direct integration with GCP Secret Manager API
+- ⚡ **Fast and efficient** - Direct integration with cloud provider APIs
+- 🔌 **Provider abstraction** - Switch between cloud providers with a single configuration change
 
 ## Installation
 
 ### Prerequisites
 
 - Node.js >= 18.0.0
-- GCP account with Secret Manager API enabled
-- GCP authentication configured (via `gcloud auth application-default login` or service account)
+- Cloud provider account with secret management service enabled:
+  - **GCP**: Secret Manager API enabled
+  - **AWS**: Secrets Manager service access (coming soon)
+- Cloud provider authentication configured:
+  - **GCP**: `gcloud auth application-default login` or service account credentials
+  - **AWS**: AWS CLI configured or IAM credentials (coming soon)
 
 ### Install from npm
 
@@ -45,20 +53,22 @@ npm run dev  # Run with tsx for development
 
 ### 1. Initialize Configuration
 
-First, initialize Cloudsec with your GCP project settings:
+First, initialize Cloudsec with your cloud provider settings:
 
 ```bash
 cloudsec init
 ```
 
 This creates a `.cloudsec.yaml` configuration file in your current directory. You'll be prompted to configure:
-- GCP project IDs for each environment
-- GCP regions
+- Cloud provider (GCP or AWS)
+- Project/account IDs for each environment
+- Regions
 - Secret name prefixes
 - Default environment
 
-### 2. Configure GCP Authentication
+### 2. Configure Cloud Provider Authentication
 
+**For GCP:**
 Ensure you're authenticated with GCP:
 
 ```bash
@@ -66,6 +76,15 @@ gcloud auth application-default login
 ```
 
 Or set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to point to a service account key file.
+
+**For AWS (coming soon):**
+Configure AWS credentials using the AWS CLI:
+
+```bash
+aws configure
+```
+
+Or set the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables.
 
 ### 3. Start Managing Secrets
 
@@ -85,11 +104,12 @@ cloudsec env -e dev --export
 
 ## Configuration
 
-The `.cloudsec.yaml` file defines your environments and GCP settings:
+The `.cloudsec.yaml` file defines your environments and cloud provider settings:
 
 ```yaml
 environments:
   - name: dev
+    provider: gcp
     projectId: your-dev-project-id
     region: us-central1
     prefix: dev-
@@ -97,6 +117,7 @@ environments:
       environment: development
       managed_by: cloudsec
   - name: staging
+    provider: gcp
     projectId: your-staging-project-id
     region: us-central1
     prefix: staging-
@@ -104,6 +125,7 @@ environments:
       environment: staging
       managed_by: cloudsec
   - name: prod
+    provider: gcp
     projectId: your-prod-project-id
     region: us-central1
     prefix: prod-
@@ -114,6 +136,12 @@ defaultEnvironment: dev
 defaultProject: your-default-project-id
 defaultRegion: us-central1
 ```
+
+**Provider Options:**
+- `gcp` - Google Cloud Platform Secret Manager (fully supported)
+- `aws` - AWS Secrets Manager (coming soon)
+
+Each environment can use a different provider, allowing you to mix and match cloud providers across your environments.
 
 ## Commands
 
@@ -224,8 +252,8 @@ cloudsec env -e dev --verbose
 These options can be used with any command:
 
 - `-e, --environment <env>` - Environment to use (dev, staging, prod)
-- `-p, --project <project>` - GCP project ID (overrides config)
-- `-r, --region <region>` - GCP region (overrides config)
+- `-p, --project <project>` - Cloud project/account ID (overrides config)
+- `-r, --region <region>` - Cloud region (overrides config)
 - `--config <path>` - Path to config file (default: `.cloudsec.yaml`)
 - `--verbose` - Enable verbose logging
 
@@ -244,6 +272,24 @@ cloudsec set DATABASE_URL "postgresql://prod-db:5432/proddb" -e prod
 cloudsec list -e dev
 cloudsec list -e prod
 ```
+
+### Using Different Cloud Providers
+
+You can configure different environments to use different cloud providers:
+
+```yaml
+environments:
+  - name: dev
+    provider: gcp
+    projectId: dev-gcp-project
+    # ... other config
+  - name: prod
+    provider: aws  # Coming soon
+    projectId: prod-aws-account
+    # ... other config
+```
+
+This allows you to leverage the best features of each cloud provider for different environments.
 
 ### Bulk Operations
 
@@ -283,19 +329,25 @@ cloudsec env -e staging --export >> .env
 
 ## How It Works
 
-Cloudsec stores all secrets for an environment in a single GCP Secret Manager secret (named with the environment prefix). This secret contains a JSON object with all key-value pairs. This approach:
+Cloudsec uses a provider-based architecture that abstracts cloud-specific implementations behind a unified interface. This allows you to:
 
-- Reduces API calls when working with multiple secrets
-- Maintains atomic updates (all secrets updated together)
-- Simplifies backup and restore operations
-- Keeps secrets organized by environment
+- Switch between cloud providers by changing the `provider` field in your configuration
+- Use different providers for different environments (e.g., GCP for dev, AWS for prod)
+- Maintain consistent commands and workflows regardless of the underlying cloud provider
+
+The tool communicates with cloud secret management services through provider implementations:
+- **GCP Provider**: Uses Google Cloud Secret Manager API
+- **AWS Provider**: Uses AWS Secrets Manager API (coming soon)
+
+Each provider implements the same interface, ensuring consistent behavior across all supported cloud platforms.
 
 ## Troubleshooting
 
 ### Authentication Errors
 
-If you see authentication errors:
+If you see authentication errors, ensure you're properly authenticated with your cloud provider:
 
+**For GCP:**
 ```bash
 # Re-authenticate with GCP
 gcloud auth application-default login
@@ -304,15 +356,34 @@ gcloud auth application-default login
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 ```
 
+**For AWS (coming soon):**
+```bash
+# Configure AWS credentials
+aws configure
+
+# Or set environment variables
+export AWS_ACCESS_KEY_ID=your-access-key
+export AWS_SECRET_ACCESS_KEY=your-secret-key
+export AWS_DEFAULT_REGION=us-east-1
+```
+
 ### Secret Not Found
 
 If a secret doesn't exist, Cloudsec will create it automatically when you use `set` or `import`. Use `list` to verify secrets exist.
 
 ### Permission Denied
 
-Ensure your GCP account has the following IAM roles:
+Ensure your cloud provider account has the necessary permissions:
+
+**For GCP:**
 - `roles/secretmanager.secretAccessor` (to read secrets)
 - `roles/secretmanager.secretVersionManager` (to create/update secrets)
+
+**For AWS (coming soon):**
+- `secretsmanager:GetSecretValue` (to read secrets)
+- `secretsmanager:CreateSecret` (to create secrets)
+- `secretsmanager:UpdateSecret` (to update secrets)
+- `secretsmanager:DeleteSecret` (to delete secrets)
 
 ## Contributing
 
