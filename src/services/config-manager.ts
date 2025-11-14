@@ -32,6 +32,30 @@ export class ConfigManager {
         throw new Error("Invalid configuration: environments must be an array");
       }
 
+      // Auto-migrate: Add provider field to environments missing it
+      let needsMigration = false;
+      for (const env of this.config.environments) {
+        if (!env.provider) {
+          env.provider = "gcp"; // Default to GCP for backward compatibility
+          needsMigration = true;
+          console.warn(
+            chalk.yellow(
+              `⚠️  Environment '${env.name}' is missing 'provider' field. Defaulting to 'gcp'. Please update your configuration file.`
+            )
+          );
+        }
+      }
+
+      // Save migrated config if needed
+      if (needsMigration) {
+        await this.saveConfig(this.config);
+        console.log(
+          chalk.blue(
+            `✅ Configuration file updated with provider fields. Please review ${this.configPath}`
+          )
+        );
+      }
+
       return this.config;
     } catch (error) {
       throw new Error(`Failed to load configuration: ${error}`);
@@ -131,14 +155,29 @@ export class ConfigManager {
     const config = await this.loadConfig();
 
     for (const env of config.environments) {
-      if (!env.name || !env.provider || !env.projectId || !env.region) {
+      if (!env.name) {
         throw new Error(
-          `Invalid environment configuration: ${JSON.stringify(env)}`,
+          `Invalid environment configuration: missing 'name' field. Environment: ${JSON.stringify(env)}`
+        );
+      }
+      if (!env.provider) {
+        throw new Error(
+          `Invalid environment configuration: environment '${env.name}' is missing required 'provider' field. Supported providers are: 'gcp', 'aws'`
+        );
+      }
+      if (!env.projectId) {
+        throw new Error(
+          `Invalid environment configuration: environment '${env.name}' is missing required 'projectId' field`
+        );
+      }
+      if (!env.region) {
+        throw new Error(
+          `Invalid environment configuration: environment '${env.name}' is missing required 'region' field`
         );
       }
       if (env.provider !== "gcp" && env.provider !== "aws") {
         throw new Error(
-          `Invalid provider '${env.provider}' for environment '${env.name}'. Supported providers are: 'gcp', 'aws'`,
+          `Invalid provider '${env.provider}' for environment '${env.name}'. Supported providers are: 'gcp', 'aws'`
         );
       }
     }

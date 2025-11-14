@@ -18,6 +18,14 @@ A command-line tool for managing Google Cloud Platform (GCP) secrets across mult
 - GCP account with Secret Manager API enabled
 - GCP authentication configured (via `gcloud auth application-default login` or service account)
 
+### Install from npm
+
+```bash
+npm install -g cloudsec
+```
+
+After installation, you can use the `cloudsec` command from anywhere.
+
 ### Install from source
 
 ```bash
@@ -312,4 +320,4 @@ Contributions are welcome! Please ensure your code follows the existing style an
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
